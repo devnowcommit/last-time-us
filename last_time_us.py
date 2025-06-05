@@ -219,6 +219,47 @@ def mark_task_completed(task_name):
     formatted_time = task_data["last_completed_timestamp"].strftime('%Y-%m-%d %H:%M:%S')
     print(f"Task '{task_name}' marked as completed at {formatted_time}.")
 
+# Helper function for list_tasks
+def time_since(dt_object):
+    """Calculates time elapsed since a datetime object into a human-readable string.
+
+    Args:
+        dt_object (datetime.datetime or None): The past datetime object from which to calculate
+                                             the time elapsed. If None, indicates the event
+                                             has not occurred.
+
+    Returns:
+        str: A human-readable string representing the time elapsed (e.g., "2 days, 3 hours ago").
+             Returns "Never" if dt_object is None.
+             Returns "Just now" if the time difference is negligible or in the future (though future is unexpected).
+    """
+    if dt_object is None:
+        return "Never"
+
+    now = datetime.datetime.now()
+    delta = now - dt_object
+
+    days = delta.days
+    seconds_in_day = delta.seconds
+
+    hours, remainder = divmod(seconds_in_day, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days} day{'s' if days != 1 else ''}")
+    if hours > 0:
+        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes > 0:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds > 0 or not parts: # show seconds if it's the only unit or if it's non-zero
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    if not parts: # Should ideally not happen if dt_object is in the past.
+        return "Just now"
+
+    return ", ".join(parts) + " ago"
+
 def list_tasks():
     """Lists all tasks, displaying their name, last completion time, time elapsed, and current streak.
 
@@ -301,46 +342,3 @@ def main_cli():
 
 if __name__ == '__main__':
     main_cli()
-
-# Helper Functions
-# ----------------
-
-def time_since(dt_object):
-    """Calculates time elapsed since a datetime object into a human-readable string.
-
-    Args:
-        dt_object (datetime.datetime or None): The past datetime object from which to calculate
-                                             the time elapsed. If None, indicates the event
-                                             has not occurred.
-
-    Returns:
-        str: A human-readable string representing the time elapsed (e.g., "2 days, 3 hours ago").
-             Returns "Never" if dt_object is None.
-             Returns "Just now" if the time difference is negligible or in the future (though future is unexpected).
-    """
-    if dt_object is None:
-        return "Never"
-
-    now = datetime.datetime.now()
-    delta = now - dt_object
-
-    days = delta.days
-    seconds_in_day = delta.seconds
-
-    hours, remainder = divmod(seconds_in_day, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    parts = []
-    if days > 0:
-        parts.append(f"{days} day{'s' if days != 1 else ''}")
-    if hours > 0:
-        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
-    if minutes > 0:
-        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-    if seconds > 0 or not parts: # show seconds if it's the only unit or if it's non-zero
-        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
-
-    if not parts: # Should ideally not happen if dt_object is in the past.
-        return "Just now"
-
-    return ", ".join(parts) + " ago"
