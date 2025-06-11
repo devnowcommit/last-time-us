@@ -386,12 +386,57 @@ def display_statistics():
 
     print("-----------------------\n")
 
+def select_task_from_list(action_verb="select"):
+    """Displays a numbered list of tasks and prompts the user to select one.
+
+    Handles cases where no tasks are available or the user cancels the selection.
+    Uses a loop to ensure valid numeric input within the range of available tasks or 0 for cancellation.
+
+    Args:
+        action_verb (str): The verb to use in the prompt, e.g., "select", "delete", "edit".
+                               Defaults to "select".
+
+    Returns:
+        str|None: The name of the selected task if a valid selection is made.
+                      Returns None if no tasks are available, or if the user chooses to cancel.
+    """
+    tasks = load_tasks()
+    if not tasks:
+        print("No tasks available. Please add some tasks first.")
+        return None
+
+    print(f"\n--- Tasks available to {action_verb} ---")
+    # Create a list of task names to ensure consistent ordering for selection
+    task_names_ordered = list(tasks.keys())
+
+    for i, task_name in enumerate(task_names_ordered):
+        print(f"{i+1}. {task_name}")
+    print("-----------------------------")
+
+    while True:
+        try:
+            choice_str = input(f"Enter the number of the task to {action_verb} (or 0 to cancel): ")
+            choice_num = int(choice_str)
+
+            if choice_num == 0:
+                return None # Cancellation
+
+            if 1 <= choice_num <= len(task_names_ordered):
+                return task_names_ordered[choice_num - 1] # Return the actual task name
+            else:
+                print(f"Invalid number. Please enter a number between 1 and {len(task_names_ordered)}, or 0 to cancel.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+        except Exception as e: # Catch any other unexpected error during input
+            print(f"An unexpected error occurred: {e}")
+            return None # Safer to cancel on unexpected error
+
 def main_cli():
     """Runs the main command-line interface for the task and streak management application.
 
     Presents a menu to the user to:
-    1. Add a new task.
-    2. Mark a task as completed (which also updates its streak).
+    1. Add a new task (user types the name).
+    2. Mark a task as completed (user selects from a list, which also updates its streak).
     3. List all tasks with their details.
     4. Show Statistics.
     5. Exit the application.
@@ -418,11 +463,12 @@ def main_cli():
             else:
                 print("Task name cannot be empty.")
         elif choice == '2':
-            task_name = input("Enter the name of the task to mark as completed: ")
-            if task_name.strip(): # Ensure task name is not empty
-                mark_task_completed(task_name.strip())
-            else:
-                print("Task name cannot be empty.")
+            selected_task_name = select_task_from_list(action_verb="mark as completed") # Call the helper
+            if selected_task_name: # If a task name was returned (not None)
+                mark_task_completed(selected_task_name)
+            # If selected_task_name is None, it means either no tasks were available or the user cancelled.
+            # The select_task_from_list function already prints "No tasks available..." if needed.
+            # So, no explicit 'else' is needed here unless we want to print "Cancelled."
         elif choice == '3':
             list_tasks()
         elif choice == '4': # <--- New elif block
