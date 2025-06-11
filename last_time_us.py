@@ -297,6 +297,49 @@ def list_tasks():
         print("-" * 20) # Separator for tasks
     print("------------------\n")
 
+def display_statistics():
+    """Calculates and displays statistics about the tasks.
+
+    Statistics displayed:
+    - Total number of tasks.
+    - Number of tasks with an active streak (current_streak > 0).
+    - Task(s) with the highest current streak and that streak count.
+    Handles the case where no tasks exist by printing an informative message.
+    """
+    tasks = load_tasks()
+
+    if not tasks:
+        print("No tasks available to calculate statistics.")
+        return
+
+    total_tasks = len(tasks)
+    active_streak_tasks_count = 0
+    highest_streak = 0
+    tasks_with_highest_streak = []
+
+    for task_name, data in tasks.items():
+        current_streak = data.get("current_streak", 0)
+        if current_streak > 0:
+            active_streak_tasks_count += 1
+
+        if current_streak > highest_streak:
+            highest_streak = current_streak
+            tasks_with_highest_streak = [task_name] # Reset list with new highest
+        elif current_streak == highest_streak and current_streak > 0: # current_streak > 0 ensures we don't list all 0-streak tasks if highest_streak is 0
+            tasks_with_highest_streak.append(task_name)
+
+    print("\n--- Task Statistics ---")
+    print(f"Total number of tasks: {total_tasks}")
+    print(f"Tasks with an active streak: {active_streak_tasks_count}")
+
+    if highest_streak > 0:
+        print(f"Highest current streak: {highest_streak} day{'s' if highest_streak != 1 else ''}")
+        if tasks_with_highest_streak:
+            print(f"  Achieved by: {', '.join(tasks_with_highest_streak)}")
+    else:
+        print("No tasks currently have an active streak.")
+    print("-----------------------\n")
+
 def main_cli():
     """Runs the main command-line interface for the task and streak management application.
 
@@ -304,7 +347,8 @@ def main_cli():
     1. Add a new task.
     2. Mark a task as completed (which also updates its streak).
     3. List all tasks with their details.
-    4. Exit the application.
+    4. Show Statistics.
+    5. Exit the application.
     Ensures `tasks.json` (the data file) exists before starting; creates an empty one if not.
     """
     # Create tasks.json if it doesn't exist, to avoid error on first load_tasks by list_tasks or other operations.
@@ -316,9 +360,10 @@ def main_cli():
         print("1. Add a new task")
         print("2. Mark a task as completed")
         print("3. List all tasks")
-        print("4. Exit")
+        print("4. Show Statistics") # <--- New option text, assuming we shift Exit
+        print("5. Exit")           # <--- Exit is now 5
 
-        choice = input("Enter your choice (1-4): ")
+        choice = input("Enter your choice (1-5): ") # <--- Updated range
 
         if choice == '1':
             task_name = input("Enter the name of the new task: ")
@@ -334,11 +379,13 @@ def main_cli():
                 print("Task name cannot be empty.")
         elif choice == '3':
             list_tasks()
-        elif choice == '4':
+        elif choice == '4': # <--- New elif block
+            display_statistics()
+        elif choice == '5': # <--- Exit condition updated
             print("Exiting application. Goodbye!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 4.")
+            print("Invalid choice. Please enter a number between 1 and 5.") # <--- Updated error message
 
 if __name__ == '__main__':
     main_cli()
