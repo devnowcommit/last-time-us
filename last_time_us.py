@@ -8,7 +8,8 @@ Each task object has the following structure:
     "task_name_key": {
         "last_completed_timestamp": "ISO_DATETIME_STRING_OR_NULL",
         "current_streak": INTEGER,
-        "streak_last_updated_date": "ISO_DATE_STRING_OR_NULL"
+            "streak_last_updated_date": "ISO_DATE_STRING_OR_NULL",
+            "total_completions": INTEGER
     },
     ...
 }
@@ -17,12 +18,14 @@ Example:
     "Grocery Shopping": {
         "last_completed_timestamp": "2023-10-27T14:30:00.123456",
         "current_streak": 5,
-        "streak_last_updated_date": "2023-10-27"
+            "streak_last_updated_date": "2023-10-27",
+            "total_completions": 10
     },
     "Workout": {
         "last_completed_timestamp": null,
         "current_streak": 0,
-        "streak_last_updated_date": null
+            "streak_last_updated_date": null,
+            "total_completions": 0
     }
 }
 """
@@ -41,11 +44,12 @@ def load_tasks():
     - "last_completed_timestamp" is a datetime.datetime object (or None if missing/invalid).
     - "streak_last_updated_date" is a datetime.date object (or None if missing/invalid).
     - "current_streak" is an integer (defaulting to 0 if missing/invalid).
+    - "total_completions" is an integer (defaulting to 0 if missing/invalid).
     Handles potential JSON decoding errors or file not found by returning an empty dictionary.
 
     Returns:
         dict: A dictionary where keys are task names (str) and values are task data objects (dict)
-              containing processed timestamps, dates, and streak information.
+              containing processed timestamps, dates, streak, and total completions information.
     """
     if not os.path.exists(DATA_FILE):
         return {}
@@ -89,6 +93,13 @@ def load_tasks():
         except (ValueError, TypeError):
             print(f"Warning: Invalid streak value for task '{task_name}'. Resetting to 0.")
             data["current_streak"] = 0
+
+        # Ensure total_completions is an int, default to 0 if missing/invalid
+        try:
+            data["total_completions"] = int(data.get("total_completions", 0))
+        except (ValueError, TypeError):
+            print(f"Warning: Invalid total_completions value for task '{task_name}'. Resetting to 0.")
+            data["total_completions"] = 0
 
         processed_tasks[task_name] = data
 
@@ -137,6 +148,8 @@ def add_task(task_name):
     - "last_completed_timestamp": None
     - "current_streak": 0
     - "streak_last_updated_date": None
+    - "total_completions": 0
+    Saves changes to the JSON file.
 
     Args:
         task_name (str): The name of the task to add.
@@ -148,10 +161,11 @@ def add_task(task_name):
         tasks[task_name] = {
             "last_completed_timestamp": None,
             "current_streak": 0,
-            "streak_last_updated_date": None
+        "streak_last_updated_date": None,
+        "total_completions": 0  # <--- Add this line
         }
         save_tasks(tasks)
-        print(f"Task '{task_name}' added with an initial streak of 0.")
+    print(f"Task '{task_name}' added with an initial streak of 0 and 0 total completions.")
 
 def mark_task_completed(task_name):
     """Marks a task as completed with the current timestamp and updates its daily streak.
@@ -163,6 +177,7 @@ def mark_task_completed(task_name):
     - If the task has already been marked completed earlier today (i.e., 'streak_last_updated_date' is today),
       the 'current_streak' and 'streak_last_updated_date' do not change further.
 
+    Increments the task's 'total_completions' counter.
     In all cases where the task is found, 'last_completed_timestamp' is updated to the current datetime.
     The 'streak_last_updated_date' is updated to the current date if the streak was affected (i.e., it's a new day for the streak).
     Saves changes to the JSON file.
@@ -211,6 +226,9 @@ def mark_task_completed(task_name):
         # last_completed_timestamp will still be updated.
         print(f"Task '{task_name}' already marked for today's streak. Completion time updated.")
 
+
+    # Increment total completions
+    task_data["total_completions"] = task_data.get("total_completions", 0) + 1 # Safely get and increment
 
     task_data["last_completed_timestamp"] = now
     save_tasks(tasks)
@@ -304,6 +322,8 @@ def display_statistics():
     - Total number of tasks.
     - Number of tasks with an active streak (current_streak > 0).
     - Task(s) with the highest current streak and that streak count.
+    - Total number of completions across all tasks.
+    - Task(s) with the highest number of total completions and that count.
     Handles the case where no tasks exist by printing an informative message.
     """
     tasks = load_tasks()
@@ -314,30 +334,56 @@ def display_statistics():
 
     total_tasks = len(tasks)
     active_streak_tasks_count = 0
-    highest_streak = 0
+    highest_streak_value = 0 # Renamed from highest_streak to avoid confusion
     tasks_with_highest_streak = []
 
+    total_completions_all_tasks = 0
+    max_completions_count = 0
+    tasks_with_max_completions = []
+
     for task_name, data in tasks.items():
+        # Streak calculations (existing logic)
         current_streak = data.get("current_streak", 0)
         if current_streak > 0:
             active_streak_tasks_count += 1
 
-        if current_streak > highest_streak:
-            highest_streak = current_streak
-            tasks_with_highest_streak = [task_name] # Reset list with new highest
-        elif current_streak == highest_streak and current_streak > 0: # current_streak > 0 ensures we don't list all 0-streak tasks if highest_streak is 0
+        if current_streak > highest_streak_value:
+            highest_streak_value = current_streak
+            tasks_with_highest_streak = [task_name]
+        elif current_streak == highest_streak_value and current_streak > 0:
             tasks_with_highest_streak.append(task_name)
+
+        # Total completions calculations (new logic)
+        task_total_completions = data.get("total_completions", 0)
+        total_completions_all_tasks += task_total_completions
+
+        if task_total_completions > max_completions_count:
+            max_completions_count = task_total_completions
+            tasks_with_max_completions = [task_name]
+        elif task_total_completions == max_completions_count and task_total_completions > 0: # task_total_completions > 0 ensures we don't list all 0-completion tasks if max_completions_count is 0
+            tasks_with_max_completions.append(task_name)
+
 
     print("\n--- Task Statistics ---")
     print(f"Total number of tasks: {total_tasks}")
     print(f"Tasks with an active streak: {active_streak_tasks_count}")
 
-    if highest_streak > 0:
-        print(f"Highest current streak: {highest_streak} day{'s' if highest_streak != 1 else ''}")
+    if highest_streak_value > 0:
+        print(f"Highest current streak: {highest_streak_value} day{'s' if highest_streak_value != 1 else ''}")
         if tasks_with_highest_streak:
-            print(f"  Achieved by: {', '.join(tasks_with_highest_streak)}")
+            print(f"  Achieved by (streak): {', '.join(tasks_with_highest_streak)}")
     else:
         print("No tasks currently have an active streak.")
+
+    print(f"Total completions across all tasks: {total_completions_all_tasks}") # New stat
+
+    if max_completions_count > 0: # New block for displaying most frequent
+        print(f"Highest number of completions for a single task: {max_completions_count}")
+        if tasks_with_max_completions:
+            print(f"  Most frequently completed task(s): {', '.join(tasks_with_max_completions)}")
+    else:
+        print("No tasks have been completed yet.")
+
     print("-----------------------\n")
 
 def main_cli():
