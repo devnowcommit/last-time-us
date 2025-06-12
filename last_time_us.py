@@ -1,6 +1,7 @@
 """
 last_time_us.py
-A command-line application to track tasks, their last completion times, and daily streaks.
+A command-line application to track tasks, their last completion times, daily streaks,
+and total completions. Features a configurable streak grace period.
 Tasks are stored in a JSON file named 'tasks.json'.
 The JSON file contains a dictionary where keys are task names.
 Each task object has the following structure:
@@ -36,6 +37,7 @@ import json # <--- Add this import
 # ... (DATA_FILE constant is already updated)
 
 DATA_FILE = "tasks.json"
+GRACE_DAYS = 1 # Number of days a task can be missed before a streak breaks
 
 def load_tasks():
     """Loads tasks from the JSON data file (tasks.json).
@@ -170,17 +172,20 @@ def add_task(task_name):
 def mark_task_completed(task_name):
     """Marks a task as completed with the current timestamp and updates its daily streak.
 
-    The function implements a daily streak logic:
-    - If the task is completed on a new calendar day (compared to 'streak_last_updated_date'):
-        - If 'streak_last_updated_date' was yesterday, 'current_streak' is incremented.
-        - Otherwise (e.g., first completion ever, or a day was missed), 'current_streak' is reset to 1.
-    - If the task has already been marked completed earlier today (i.e., 'streak_last_updated_date' is today),
-      the 'current_streak' and 'streak_last_updated_date' do not change further.
+    Streak logic incorporates a grace period defined by `GRACE_DAYS` global constant:
+    - If the task was last completed for streak purposes on the previous day,
+      the streak continues normally.
+    - If the task was last completed for streak purposes within `GRACE_DAYS + 1` days
+      (e.g., if GRACE_DAYS = 1, this means completed the day before yesterday),
+      the streak also continues, utilizing the grace period.
+    - If the task was already marked completed for streak purposes today, the streak
+      count does not change further, but the 'last_completed_timestamp' is updated.
+    - Otherwise (e.g., gap is too large, or it's the first completion), the streak
+      resets to 1. A distinction is made in messaging between a "started" and "restarted" streak.
 
     Increments the task's 'total_completions' counter.
-    In all cases where the task is found, 'last_completed_timestamp' is updated to the current datetime.
-    The 'streak_last_updated_date' is updated to the current date if the streak was affected (i.e., it's a new day for the streak).
-    Saves changes to the JSON file.
+    Updates 'last_completed_timestamp' to the current datetime, and 'streak_last_updated_date'
+    to the current date if the streak was affected. Saves changes to the JSON file.
 
     Args:
         task_name (str): The name of the task to mark as completed.
@@ -210,30 +215,37 @@ def mark_task_completed(task_name):
 
     last_streak_update_date = task_data.get("streak_last_updated_date")
 
-    if last_streak_update_date != today: # Only update streak if it's a new day or first time
-        if last_streak_update_date == today - datetime.timedelta(days=1):
+    if last_streak_update_date == today:
+        # Task already completed today for streak purposes, streak doesn't change further.
+        print(f"Task '{task_name}' already marked for today's streak. Completion time updated.")
+    else:
+        # Calculate the difference in days from the last streak update
+        days_difference = (today - last_streak_update_date).days if last_streak_update_date else float('inf')
+
+        if days_difference == 1: # Completed yesterday, normal continuation
             task_data["current_streak"] += 1
             print(f"Good job! Streak continued for '{task_name}'. Current streak: {task_data['current_streak']}.")
-        else:
-            # This covers:
-            # 1. First time completing the task (last_streak_update_date is None).
-            # 2. Missed one or more days (last_streak_update_date is not yesterday).
+        elif 1 < days_difference <= (GRACE_DAYS + 1): # Completed within grace period
+            task_data["current_streak"] += 1
+            # It might be nice to let the user know they used a grace day, but for simplicity,
+            # the message can be the same as normal continuation or slightly adjusted.
+            # Let's make it distinct for now.
+            print(f"Streak continued for '{task_name}' (grace day(s) used)! Current streak: {task_data['current_streak']}.")
+        else: # Streak broken (gap too large) or first completion
             task_data["current_streak"] = 1
-            print(f"Streak started/restarted for '{task_name}'! Current streak: 1.")
+            if last_streak_update_date: # It's a reset
+                 print(f"Streak restarted for '{task_name}'! Current streak: 1.")
+            else: # It's the very first time
+                 print(f"Streak started for '{task_name}'! Current streak: 1.")
+
         task_data["streak_last_updated_date"] = today
-    else:
-        # Task already completed today, streak doesn't change further.
-        # last_completed_timestamp will still be updated.
-        print(f"Task '{task_name}' already marked for today's streak. Completion time updated.")
 
-
-    # Increment total completions
-    task_data["total_completions"] = task_data.get("total_completions", 0) + 1 # Safely get and increment
+    # Increment total completions (existing logic - should be here)
+    task_data["total_completions"] = task_data.get("total_completions", 0) + 1
 
     task_data["last_completed_timestamp"] = now
     save_tasks(tasks)
-    # Use task_data here as 'tasks' dict in memory is updated by save_tasks preparing for serialization.
-    # For display, better to use the value from task_data which is definitively a datetime object.
+
     formatted_time = task_data["last_completed_timestamp"].strftime('%Y-%m-%d %H:%M:%S')
     print(f"Task '{task_name}' marked as completed at {formatted_time}.")
 
