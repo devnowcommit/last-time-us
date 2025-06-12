@@ -137,7 +137,16 @@ def save_tasks(tasks):
         # Create a copy of data to avoid modifying the original dict in memory during serialization
         task_data_copy = data.copy()
 
-        # Convert datetime object to ISO string
+        # Convert creation_timestamp datetime object to ISO string (NEW BLOCK)
+        if isinstance(task_data_copy.get("creation_timestamp"), datetime.datetime):
+            task_data_copy["creation_timestamp"] = task_data_copy["creation_timestamp"].isoformat()
+        elif task_data_copy.get("creation_timestamp") is not None:
+            # This handles cases where it might be something other than None or datetime,
+            # which would also cause JSON serialization issues.
+            print(f"Warning: Invalid type for creation_timestamp for task '{task_name}' during save. Setting to null.")
+            task_data_copy["creation_timestamp"] = None
+
+        # Convert last_completed_timestamp datetime object to ISO string (Existing block)
         if isinstance(task_data_copy.get("last_completed_timestamp"), datetime.datetime):
             task_data_copy["last_completed_timestamp"] = task_data_copy["last_completed_timestamp"].isoformat()
         elif task_data_copy.get("last_completed_timestamp") is not None: # If it's some other non-None, non-datetime type, ensure it's nullified for JSON
