@@ -7,26 +7,29 @@ The JSON file contains a dictionary where keys are task names.
 Each task object has the following structure:
 {
     "task_name_key": {
+        "creation_timestamp": "ISO_DATETIME_STRING_OR_NULL", # <-- New field
         "last_completed_timestamp": "ISO_DATETIME_STRING_OR_NULL",
         "current_streak": INTEGER,
-            "streak_last_updated_date": "ISO_DATE_STRING_OR_NULL",
-            "total_completions": INTEGER
+        "streak_last_updated_date": "ISO_DATE_STRING_OR_NULL",
+        "total_completions": INTEGER
     },
     ...
 }
 Example:
 {
     "Grocery Shopping": {
+        "creation_timestamp": "2023-10-26T10:00:00.000000",
         "last_completed_timestamp": "2023-10-27T14:30:00.123456",
         "current_streak": 5,
-            "streak_last_updated_date": "2023-10-27",
-            "total_completions": 10
+        "streak_last_updated_date": "2023-10-27",
+        "total_completions": 10
     },
     "Workout": {
+        "creation_timestamp": "2023-10-27T12:00:00.000000",
         "last_completed_timestamp": null,
         "current_streak": 0,
-            "streak_last_updated_date": null,
-            "total_completions": 0
+        "streak_last_updated_date": null,
+        "total_completions": 0
     }
 }
 """
@@ -43,8 +46,9 @@ def load_tasks():
     """Loads tasks from the JSON data file (tasks.json).
 
     Tasks are deserialized from JSON. For each task, it ensures:
-    - "last_completed_timestamp" is a datetime.datetime object (or None if missing/invalid).
-    - "streak_last_updated_date" is a datetime.date object (or None if missing/invalid).
+    - "creation_timestamp" (ISO string) is converted to a datetime.datetime object (or None if missing/invalid).
+    - "last_completed_timestamp" (ISO string) is converted to a datetime.datetime object (or None if missing/invalid).
+    - "streak_last_updated_date" (ISO string) is converted to a datetime.date object (or None if missing/invalid).
     - "current_streak" is an integer (defaulting to 0 if missing/invalid).
     - "total_completions" is an integer (defaulting to 0 if missing/invalid).
     Handles potential JSON decoding errors or file not found by returning an empty dictionary.
@@ -69,6 +73,16 @@ def load_tasks():
 
     processed_tasks = {}
     for task_name, data in tasks_raw.items():
+        # Convert creation_timestamp string to datetime object
+        if data.get("creation_timestamp"):
+            try:
+                data["creation_timestamp"] = datetime.datetime.fromisoformat(data["creation_timestamp"])
+            except (ValueError, TypeError):
+                print(f"Warning: Malformed creation_timestamp for task '{task_name}'. Setting to None.")
+                data["creation_timestamp"] = None
+        else:
+            data["creation_timestamp"] = None # Ensure it's None if missing or null in JSON
+
         # Convert timestamp string to datetime object
         if data.get("last_completed_timestamp"):
             try:
@@ -146,11 +160,9 @@ def add_task(task_name):
     """Adds a new task to the task list and saves to the JSON file.
 
     If the task already exists, a message is printed, and no changes are made.
-    New tasks are initialized with:
-    - "last_completed_timestamp": None
-    - "current_streak": 0
-    - "streak_last_updated_date": None
-    - "total_completions": 0
+    New tasks are initialized with a 'creation_timestamp' set to the current time,
+    and default values for 'last_completed_timestamp' (None), 'current_streak' (0),
+    'streak_last_updated_date' (None), and 'total_completions' (0).
     Saves changes to the JSON file.
 
     Args:
@@ -160,14 +172,16 @@ def add_task(task_name):
     if task_name in tasks:
         print(f"Task '{task_name}' already exists.")
     else:
+        current_time = datetime.datetime.now() # Get current time
         tasks[task_name] = {
+            "creation_timestamp": current_time, # <--- Store datetime object directly for now
             "last_completed_timestamp": None,
             "current_streak": 0,
-        "streak_last_updated_date": None,
-        "total_completions": 0  # <--- Add this line
+            "streak_last_updated_date": None,
+            "total_completions": 0
         }
-        save_tasks(tasks)
-    print(f"Task '{task_name}' added with an initial streak of 0 and 0 total completions.")
+        save_tasks(tasks) # save_tasks will handle converting datetime to string
+        print(f"Task '{task_name}' added with an initial streak of 0 and 0 total completions.")
 
 def mark_task_completed(task_name):
     """Marks a task as completed with the current timestamp and updates its daily streak.
@@ -295,10 +309,11 @@ def list_tasks():
 
     If no tasks are found, a message is printed.
     For each task, it displays:
-    - Task Name
-    - Last Completed: Timestamp (YYYY-MM-DD HH:MM:SS) and human-readable time since (e.g., "X days ago").
-                      Shows "Never" if never completed.
-    - Current Streak: Number of consecutive days the task has been completed.
+    - Task Name.
+    - Time elapsed since creation (if available).
+    - Last completion time (absolute and relative time via `time_since`).
+    - Current streak count.
+    - Total number of completions for the task.
     """
     tasks = load_tasks()
     if not tasks:
@@ -308,6 +323,23 @@ def list_tasks():
     print("\n--- Your Tasks ---")
     for task_name, data in tasks.items():
         print(f"Task: {task_name}")
+
+        # Display Creation Timestamp (New Block)
+        creation_ts = data.get("creation_timestamp")
+        if creation_ts:
+            # Ensure it's a datetime object (load_tasks should handle this)
+            if isinstance(creation_ts, datetime.datetime):
+                created_ago_str = time_since(creation_ts) # Reuse existing helper
+                # Optional: also print the absolute creation time
+                # created_time_str = creation_ts.strftime("%Y-%m-%d %H:%M:%S")
+                # print(f"  Created: {created_time_str} ({created_ago_str})")
+                print(f"  Created: {created_ago_str}") # Simpler: just relative time
+            else: # Should ideally not happen if load_tasks is correct
+                print(f"  Created: Error processing creation timestamp.")
+        else:
+            # This case handles tasks created before this feature was implemented,
+            # or if creation_timestamp was explicitly null or malformed during load.
+            print(f"  Created: Information unavailable")
 
         last_completed_timestamp = data.get("last_completed_timestamp")
 
