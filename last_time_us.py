@@ -37,6 +37,16 @@ import os
 import datetime
 import json # <--- Add this import
 
+# ANSI Color Codes for Terminal Output
+COLOR_GREEN = "\033[92m"    # Bright Green
+COLOR_YELLOW = "\033[93m"   # Bright Yellow
+COLOR_BLUE = "\033[94m"     # Bright Blue
+COLOR_MAGENTA = "\033[95m"  # Bright Magenta
+COLOR_CYAN = "\033[96m"     # Bright Cyan
+# COLOR_RED = "\033[91m"      # Bright Red (example, not used for menu yet)
+# COLOR_BOLD = "\033[1m"      # Bold
+COLOR_RESET = "\033[0m"     # Reset all attributes
+
 # ... (DATA_FILE constant is already updated)
 
 DATA_FILE = "tasks.json"
@@ -517,11 +527,11 @@ def main_cli():
 
     while True:
         print("\n¿Qué te gustaría hacer?")
-        print("1. Añadir nueva tarea")
-        print("2. Marcar tarea como completada")
-        print("3. Listar todas las tareas")
-        print("4. Mostrar estadísticas")
-        print("5. Salir")
+        print(f"{COLOR_GREEN}1. Añadir nueva tarea{COLOR_RESET}")
+        print(f"{COLOR_YELLOW}2. Marcar tarea como completada{COLOR_RESET}")
+        print(f"{COLOR_BLUE}3. Listar todas las tareas{COLOR_RESET}")
+        print(f"{COLOR_MAGENTA}4. Mostrar estadísticas{COLOR_RESET}")
+        print(f"{COLOR_CYAN}5. Salir{COLOR_RESET}")
 
         choice = input("Ingresa tu opción (1-5): ")
 
