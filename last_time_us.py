@@ -179,7 +179,7 @@ def add_task(task_name):
     """
     tasks = load_tasks()
     if task_name in tasks:
-        print(f"Task '{task_name}' already exists.")
+        print(f"La tarea '{task_name}' ya existe.")
     else:
         current_time = datetime.datetime.now() # Get current time
         tasks[task_name] = {
@@ -190,7 +190,7 @@ def add_task(task_name):
             "total_completions": 0
         }
         save_tasks(tasks) # save_tasks will handle converting datetime to string
-        print(f"Task '{task_name}' added with an initial streak of 0 and 0 total completions.")
+        print(f"Tarea '{task_name}' añadida con una racha inicial de 0.")
 
 def mark_task_completed(task_name):
     """Marks a task as completed with the current timestamp and updates its daily streak.
@@ -215,7 +215,7 @@ def mark_task_completed(task_name):
     """
     tasks = load_tasks()
     if task_name not in tasks:
-        print(f"Task '{task_name}' not found. You can add it first.")
+        print(f"Tarea '{task_name}' no encontrada. Puedes añadirla primero.")
         return
 
     task_data = tasks[task_name]
@@ -240,26 +240,26 @@ def mark_task_completed(task_name):
 
     if last_streak_update_date == today:
         # Task already completed today for streak purposes, streak doesn't change further.
-        print(f"Task '{task_name}' already marked for today's streak. Completion time updated.")
+        print(f"Tarea '{task_name}' ya marcada para la racha de hoy. Hora de completada actualizada.")
     else:
         # Calculate the difference in days from the last streak update
         days_difference = (today - last_streak_update_date).days if last_streak_update_date else float('inf')
 
         if days_difference == 1: # Completed yesterday, normal continuation
             task_data["current_streak"] += 1
-            print(f"Good job! Streak continued for '{task_name}'. Current streak: {task_data['current_streak']}.")
+            print(f"¡Buen trabajo! Racha continuada para '{task_name}'. Racha actual: {task_data['current_streak']}.")
         elif 1 < days_difference <= (GRACE_DAYS + 1): # Completed within grace period
             task_data["current_streak"] += 1
             # It might be nice to let the user know they used a grace day, but for simplicity,
             # the message can be the same as normal continuation or slightly adjusted.
             # Let's make it distinct for now.
-            print(f"Streak continued for '{task_name}' (grace day(s) used)! Current streak: {task_data['current_streak']}.")
+            print(f"¡Racha continuada para '{task_name}' (día(s) de gracia usados)! Racha actual: {task_data['current_streak']}.")
         else: # Streak broken (gap too large) or first completion
             task_data["current_streak"] = 1
             if last_streak_update_date: # It's a reset
-                 print(f"Streak restarted for '{task_name}'! Current streak: 1.")
+                 print(f"¡Racha reiniciada para '{task_name}'! Racha actual: 1.")
             else: # It's the very first time
-                 print(f"Streak started for '{task_name}'! Current streak: 1.")
+                 print(f"¡Racha iniciada para '{task_name}'! Racha actual: 1.")
 
         task_data["streak_last_updated_date"] = today
 
@@ -270,48 +270,61 @@ def mark_task_completed(task_name):
     save_tasks(tasks)
 
     formatted_time = task_data["last_completed_timestamp"].strftime('%Y-%m-%d %H:%M:%S')
-    print(f"Task '{task_name}' marked as completed at {formatted_time}.")
+    print(f"Tarea '{task_name}' marcada como completada a las {formatted_time}.")
 
 # Helper function for list_tasks
 def time_since(dt_object):
-    """Calculates time elapsed since a datetime object into a human-readable string.
+    """Calculates time elapsed since a datetime object in a human-readable Spanish string.
 
     Args:
-        dt_object (datetime.datetime or None): The past datetime object from which to calculate
-                                             the time elapsed. If None, indicates the event
-                                             has not occurred.
+        dt_object (datetime.datetime): The past datetime object.
 
     Returns:
-        str: A human-readable string representing the time elapsed (e.g., "2 days, 3 hours ago").
-             Returns "Never" if dt_object is None.
-             Returns "Just now" if the time difference is negligible or in the future (though future is unexpected).
+        str: Human-readable string of time elapsed in Spanish (e.g., "hace 1 día, 2 horas").
+             Returns "Nunca" if dt_object is None.
+             Returns "Justo ahora" if the difference is minimal.
     """
     if dt_object is None:
-        return "Never"
+        return "Nunca"  # Translated
 
     now = datetime.datetime.now()
     delta = now - dt_object
 
-    days = delta.days
-    seconds_in_day = delta.seconds
+    # Ensure delta is not negative (i.e. dt_object is not in the future)
+    if delta.total_seconds() < 0:
+        # Or handle as an error, or return a specific string for future dates
+        return "En el futuro" # "In the future" - or adapt as needed
 
-    hours, remainder = divmod(seconds_in_day, 3600)
-    minutes, seconds = divmod(remainder, 60)
+    days = delta.days
+    seconds_in_day_remainder = delta.seconds # Renamed for clarity
+
+    hours, remainder_after_hours = divmod(seconds_in_day_remainder, 3600)
+    minutes, seconds = divmod(remainder_after_hours, 60)
 
     parts = []
     if days > 0:
-        parts.append(f"{days} day{'s' if days != 1 else ''}")
+        parts.append(f"{days} {'días' if days != 1 else 'día'}") # Spanish pluralization
     if hours > 0:
-        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+        parts.append(f"{hours} {'horas' if hours != 1 else 'hora'}") # Spanish pluralization
     if minutes > 0:
-        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-    if seconds > 0 or not parts: # show seconds if it's the only unit or if it's non-zero
-        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+        parts.append(f"{minutes} {'minutos' if minutes != 1 else 'minuto'}") # Spanish pluralization
 
-    if not parts: # Should ideally not happen if dt_object is in the past.
-        return "Just now"
+    # Show seconds if it's the only unit, or if other units are present and seconds > 0.
+    # Or always show seconds if delta is less than a minute.
+    if not parts and seconds >= 0: # If no days, hours, minutes, show seconds (even if 0 for "Justo ahora" case)
+         parts.append(f"{seconds} {'segundos' if seconds != 1 else 'segundo'}") # Spanish pluralization
+    elif parts and seconds > 0 : # If there are other parts, only add seconds if non-zero
+         parts.append(f"{seconds} {'segundos' if seconds != 1 else 'segundo'}")
 
-    return ", ".join(parts) + " ago"
+
+    if not parts:
+        # This case should ideally be caught if seconds are always added when no other parts exist.
+        # If parts is empty, it means days, hours, minutes, AND seconds were all zero (or seconds logic was skipped).
+        return "Justo ahora" # Translated
+
+    # Construct the string with "hace" at the beginning
+    time_str = ", ".join(parts)
+    return f"hace {time_str}"
 
 def list_tasks():
     """Lists all tasks, displaying their name, last completion time, time elapsed, and current streak.
@@ -326,12 +339,12 @@ def list_tasks():
     """
     tasks = load_tasks()
     if not tasks:
-        print("No tasks found. Add some tasks first!")
+        print("No se encontraron tareas. ¡Añade algunas tareas primero!")
         return
 
-    print("\n--- Your Tasks ---")
+    print("\n--- Tus Tareas ---")
     for task_name, data in tasks.items():
-        print(f"Task: {task_name}")
+        print(f"Tarea: {task_name}")
 
         # Display Creation Timestamp (New Block)
         creation_ts = data.get("creation_timestamp")
@@ -341,14 +354,14 @@ def list_tasks():
                 created_ago_str = time_since(creation_ts) # Reuse existing helper
                 # Optional: also print the absolute creation time
                 # created_time_str = creation_ts.strftime("%Y-%m-%d %H:%M:%S")
-                # print(f"  Created: {created_time_str} ({created_ago_str})")
-                print(f"  Created: {created_ago_str}") # Simpler: just relative time
+                # print(f"  Creada: {created_time_str} ({created_ago_str})")
+                print(f"  Creada: {created_ago_str}")
             else: # Should ideally not happen if load_tasks is correct
-                print(f"  Created: Error processing creation timestamp.")
+                print(f"  Creada: Error procesando timestamp de creación.")
         else:
             # This case handles tasks created before this feature was implemented,
             # or if creation_timestamp was explicitly null or malformed during load.
-            print(f"  Created: Information unavailable")
+            print(f"  Creada: Información no disponible")
 
         last_completed_timestamp = data.get("last_completed_timestamp")
 
@@ -357,14 +370,17 @@ def list_tasks():
             if isinstance(last_completed_timestamp, datetime.datetime):
                 time_ago_str = time_since(last_completed_timestamp)
                 last_time_str = last_completed_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                print(f"  Last completed: {last_time_str} ({time_ago_str})")
+                print(f"  Última vez completada: {last_time_str} ({time_ago_str})")
             else: # Should not happen if load_tasks works correctly
-                print(f"  Last completed: Error processing timestamp ({last_completed_timestamp})")
+                print(f"  Última vez completada: Error procesando timestamp ({last_completed_timestamp})")
         else:
-            print("  Last completed: Never")
+            print("  Última vez completada: Nunca")
 
         current_streak = data.get("current_streak", 0) # Default to 0 if not found
-        print(f"  Current Streak: {current_streak} day{'s' if current_streak != 1 else ''}")
+        print(f"  Racha Actual: {current_streak} día{'s' if current_streak != 1 else ''}")
+
+        total_completions = data.get("total_completions", 0)
+        print(f"  Veces completada: {total_completions}")
         print("-" * 20) # Separator for tasks
     print("------------------\n")
 
@@ -382,7 +398,7 @@ def display_statistics():
     tasks = load_tasks()
 
     if not tasks:
-        print("No tasks available to calculate statistics.")
+        print("No hay tareas disponibles para calcular estadísticas.")
         return
 
     total_tasks = len(tasks)
@@ -417,25 +433,25 @@ def display_statistics():
             tasks_with_max_completions.append(task_name)
 
 
-    print("\n--- Task Statistics ---")
-    print(f"Total number of tasks: {total_tasks}")
-    print(f"Tasks with an active streak: {active_streak_tasks_count}")
+    print("\n--- Estadísticas de Tareas ---")
+    print(f"Número total de tareas: {total_tasks}")
+    print(f"Tareas con racha activa: {active_streak_tasks_count}")
 
     if highest_streak_value > 0:
-        print(f"Highest current streak: {highest_streak_value} day{'s' if highest_streak_value != 1 else ''}")
+        print(f"Racha actual más larga: {highest_streak_value} día{'s' if highest_streak_value != 1 else ''}")
         if tasks_with_highest_streak:
-            print(f"  Achieved by (streak): {', '.join(tasks_with_highest_streak)}")
+            print(f"  Lograda por (racha): {', '.join(tasks_with_highest_streak)}")
     else:
-        print("No tasks currently have an active streak.")
+        print("Actualmente ninguna tarea tiene una racha activa.")
 
-    print(f"Total completions across all tasks: {total_completions_all_tasks}") # New stat
+    print(f"Total de veces completadas (todas las tareas): {total_completions_all_tasks}")
 
     if max_completions_count > 0: # New block for displaying most frequent
-        print(f"Highest number of completions for a single task: {max_completions_count}")
+        print(f"Mayor número de veces completada (tarea individual): {max_completions_count}")
         if tasks_with_max_completions:
-            print(f"  Most frequently completed task(s): {', '.join(tasks_with_max_completions)}")
+            print(f"  Tarea(s) completada(s) más frecuentemente: {', '.join(tasks_with_max_completions)}")
     else:
-        print("No tasks have been completed yet.")
+        print("Ninguna tarea ha sido completada aún.")
 
     print("-----------------------\n")
 
@@ -455,10 +471,10 @@ def select_task_from_list(action_verb="select"):
     """
     tasks = load_tasks()
     if not tasks:
-        print("No tasks available. Please add some tasks first.")
+        print("No hay tareas disponibles. Por favor, añade algunas tareas primero.")
         return None
 
-    print(f"\n--- Tasks available to {action_verb} ---")
+    print(f"\n--- Tareas disponibles para {action_verb} ---")
     # Create a list of task names to ensure consistent ordering for selection
     task_names_ordered = list(tasks.keys())
 
@@ -468,7 +484,7 @@ def select_task_from_list(action_verb="select"):
 
     while True:
         try:
-            choice_str = input(f"Enter the number of the task to {action_verb} (or 0 to cancel): ")
+            choice_str = input(f"Ingresa el número de la tarea para {action_verb} (o 0 para cancelar): ")
             choice_num = int(choice_str)
 
             if choice_num == 0:
@@ -477,11 +493,11 @@ def select_task_from_list(action_verb="select"):
             if 1 <= choice_num <= len(task_names_ordered):
                 return task_names_ordered[choice_num - 1] # Return the actual task name
             else:
-                print(f"Invalid number. Please enter a number between 1 and {len(task_names_ordered)}, or 0 to cancel.")
+                print(f"Número inválido. Por favor, ingresa un número entre 1 y {len(task_names_ordered)}, o 0 para cancelar.")
         except ValueError:
-            print("Invalid input. Please enter a number.")
+            print("Entrada inválida. Por favor, ingresa un número.")
         except Exception as e: # Catch any other unexpected error during input
-            print(f"An unexpected error occurred: {e}")
+            print(f"Ocurrió un error inesperado: {e}")
             return None # Safer to cancel on unexpected error
 
 def main_cli():
@@ -500,23 +516,23 @@ def main_cli():
         save_tasks({}) # Create an empty tasks file
 
     while True:
-        print("\nWhat would you like to do?")
-        print("1. Add a new task")
-        print("2. Mark a task as completed")
-        print("3. List all tasks")
-        print("4. Show Statistics") # <--- New option text, assuming we shift Exit
-        print("5. Exit")           # <--- Exit is now 5
+        print("\n¿Qué te gustaría hacer?")
+        print("1. Añadir nueva tarea")
+        print("2. Marcar tarea como completada")
+        print("3. Listar todas las tareas")
+        print("4. Mostrar estadísticas")
+        print("5. Salir")
 
-        choice = input("Enter your choice (1-5): ") # <--- Updated range
+        choice = input("Ingresa tu opción (1-5): ")
 
         if choice == '1':
-            task_name = input("Enter the name of the new task: ")
+            task_name = input("Ingresa el nombre de la nueva tarea: ")
             if task_name.strip(): # Ensure task name is not empty after removing leading/trailing whitespace
                  add_task(task_name.strip())
             else:
-                print("Task name cannot be empty.")
+                print("El nombre de la tarea no puede estar vacío.")
         elif choice == '2':
-            selected_task_name = select_task_from_list(action_verb="mark as completed") # Call the helper
+            selected_task_name = select_task_from_list(action_verb="marcar como completada") # Call the helper
             if selected_task_name: # If a task name was returned (not None)
                 mark_task_completed(selected_task_name)
             # If selected_task_name is None, it means either no tasks were available or the user cancelled.
@@ -527,10 +543,10 @@ def main_cli():
         elif choice == '4': # <--- New elif block
             display_statistics()
         elif choice == '5': # <--- Exit condition updated
-            print("Exiting application. Goodbye!")
+            print("Saliendo de la aplicación. ¡Adiós!")
             break
         else:
-            print("Invalid choice. Please enter a number between 1 and 5.") # <--- Updated error message
+            print("Opción inválida. Por favor, ingresa un número entre 1 y 5.")
 
 if __name__ == '__main__':
     main_cli()
